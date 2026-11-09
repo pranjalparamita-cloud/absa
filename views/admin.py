@@ -111,32 +111,31 @@ def page_admin():
             logs_df["timestamp"] = pd.to_datetime(logs_df["timestamp"])
             d1 = logs_df[logs_df["event_type"].isin(["login", "google_login"])].copy()
             g1, g2 = st.columns(2)
+            # Real containers, not HTML wrappers: an unclosed <div> renders as
+            # an empty box and leaves the chart outside it.
             with g1:
-                st.markdown('<div class="glass">', unsafe_allow_html=True)
-                if not d1.empty:
-                    d1["day"] = d1["timestamp"].dt.strftime("%d %b")
-                    fig = px.bar(d1.groupby("day").size().reset_index(name="logins"), x="day", y="logins",
-                                 title="Logins per day", color_discrete_sequence=["#9333ea"])
-                    st.plotly_chart(style_fig(fig, 320), width="stretch")
-                else:
-                    st.info("No logins yet.")
-                st.markdown("</div>", unsafe_allow_html=True)
+                with st.container(key="admin-card-logins", border=False):
+                    if not d1.empty:
+                        d1["day"] = d1["timestamp"].dt.strftime("%d %b")
+                        fig = px.bar(d1.groupby("day").size().reset_index(name="logins"), x="day", y="logins",
+                                     title="Logins per day", color_discrete_sequence=["#9333ea"])
+                        st.plotly_chart(style_fig(fig, 320), width="stretch")
+                    else:
+                        st.info("No logins yet.")
             with g2:
-                st.markdown('<div class="glass">', unsafe_allow_html=True)
-                ev = logs_df["event_type"].value_counts().reset_index()
-                ev.columns = ["event", "count"]
-                fig = px.pie(ev, names="event", values="count", hole=0.5,
-                             title="Event distribution",
-                             color_discrete_sequence=px.colors.qualitative.Pastel)
+                with st.container(key="admin-card-events", border=False):
+                    ev = logs_df["event_type"].value_counts().reset_index()
+                    ev.columns = ["event", "count"]
+                    fig = px.pie(ev, names="event", values="count", hole=0.5,
+                                 title="Event distribution",
+                                 color_discrete_sequence=px.colors.qualitative.Pastel)
+                    st.plotly_chart(style_fig(fig, 320), width="stretch")
+            with st.container(key="admin-card-active", border=False):
+                top = logs_df["username"].value_counts().head(10).reset_index()
+                top.columns = ["user", "events"]
+                fig = px.bar(top, x="user", y="events", title="Most active users (events)",
+                             color_discrete_sequence=["#ec4899"])
                 st.plotly_chart(style_fig(fig, 320), width="stretch")
-                st.markdown("</div>", unsafe_allow_html=True)
-            st.markdown('<div class="glass">', unsafe_allow_html=True)
-            top = logs_df["username"].value_counts().head(10).reset_index()
-            top.columns = ["user", "events"]
-            fig = px.bar(top, x="user", y="events", title="Most active users (events)",
-                         color_discrete_sequence=["#ec4899"])
-            st.plotly_chart(style_fig(fig, 320), width="stretch")
-            st.markdown("</div>", unsafe_allow_html=True)
 
     with tab4:
         st.markdown("##### Download data")

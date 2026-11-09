@@ -53,22 +53,54 @@ def fig_bar(aspect_data):
 
 
 def fig_sunburst(aspect_data, total):
-    labels, parents, values, colors = ["All Reviews"], [""], [total], ["#c4b5fd"]
+    """Aspects -> sentiment sunburst.
+
+    Two rules keep this chart visible, and both matter:
+
+    1. NO artificial root node. A review mentions several aspects, so the
+       per-aspect counts overlap and add up to MORE than the review count.
+       A root valued `total` therefore cannot contain its children, and
+       Plotly silently draws an empty canvas (this was a real bug: a blank
+       "Sunburst: Aspects -> Sentiment" panel).
+    2. Skip zero-count leaves. A slice with value 0 has no area, and mixing
+       them into the hierarchy wastes the ring.
+
+    `branchvalues="remainder"` then lets each ring size itself from the
+    children that actually exist.
+    """
+    labels, parents, values, colors = [], [], [], []
     for a, d in aspect_data.items():
         a_total = max(1, d["positive"] + d["neutral"] + d["negative"])
-        labels.append(a); parents.append("All Reviews"); values.append(a_total); colors.append("#ddd6fe")
+        labels.append(a); parents.append(""); values.append(a_total); colors.append("#ddd6fe")
         for s, c in (("positive", POS_COLOR), ("neutral", NEU_COLOR), ("negative", NEG_COLOR)):
+            count = max(0, int(d[s]))
+            if count == 0:
+                continue
             labels.append(f"{a} • {s.capitalize()}"); parents.append(a)
-            values.append(max(0, d[s])); colors.append(c)
-    fig = go.Figure(go.Sunburst(labels=labels, parents=parents, values=values,
-                                marker=dict(colors=colors, line=dict(color="white", width=2)),
-                                branchvalues="total", hoverinfo="label+value"))
-    fig.update_layout(title="Sunburst: Aspects → Sentiment", title_font=dict(size=14, color="#4c1d95"))
+            values.append(count); colors.append(c)
+
+    if not labels:                       # nothing to draw -> say so, do not go blank
+        fig = go.Figure()
+        fig.add_annotation(text="No aspect mentions found", showarrow=False,
+                           font=dict(size=14, color="#6d6890"))
+        return style_fig(fig, 460)
+
+    fig = go.Figure(go.Sunburst(
+        labels=labels, parents=parents, values=values,
+        marker=dict(colors=colors, line=dict(color="white", width=2)),
+        branchvalues="remainder", maxdepth=2, hoverinfo="label+value",
+    ))
+    fig.update_layout(title="Sunburst: Aspects → Sentiment",
+                      title_font=dict(size=14, color="#4c1d95"))
     return style_fig(fig, 460)
 
 
 def fig_radar(aspect_data):
     aspects = list(aspect_data.keys())
+    if len(aspects) < 3:
+        # A polygon needs three corners; with 1-2 aspects a radar renders as an
+        # invisible dot. Show the same scores as bars instead.
+        return fig_bar(aspect_data)
     scores = []
     for a in aspects:
         d = aspect_data[a]

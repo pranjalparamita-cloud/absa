@@ -65,7 +65,28 @@ footer { visibility: hidden; }
   box-shadow: 0 6px 24px rgba(150,120,255,0.12);
   padding: 18px;
 }
-.auth-card { max-width: 560px; margin: 4vh auto; padding: 34px 36px; }
+/* ---- real st.container cards (key= gives every container an st-key-* class).
+   These replaced HTML wrappers that left empty boxes on the page. ---- */
+.st-key-auth-card {
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.75);
+  box-shadow: 0 8px 32px rgba(150,120,255,0.16);
+  padding: 30px 32px;
+  max-width: 560px;
+  margin: 4vh auto;
+}
+.st-key-card-profile, .st-key-card-password,
+.st-key-admin-card-logins, .st-key-admin-card-events, .st-key-admin-card-active {
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.75);
+  box-shadow: 0 8px 32px rgba(150,120,255,0.16);
+  padding: 22px 24px;
+}
+.st-key-card-profile, .st-key-card-password { margin-bottom: 18px; }
 .brand-mini { color: #9333ea; font-weight: 700; font-size: 1.05rem; letter-spacing: 0.2px; }
 .divider-line { height: 3px; border-radius: 99px; margin: 14px 0 20px;
   background: linear-gradient(90deg, rgba(34,211,238,0.7), rgba(232,121,249,0.15), rgba(139,92,246,0.7)); }

@@ -35,8 +35,8 @@ def login_with_google_profile(profile):
             uname = f"{base}{i}"
         user = create_user(uname, email, secrets.token_urlsafe(16), provider="google")
         log_event(user, "signup", f"Registered via Google ({uname})")
-    # Optional extra: cache the Google avatar locally so it keeps working
-    # offline. Fully guarded — a missing/failed download must never block login.
+    # Optional extra: cache the Google avatar locally. Fully guarded — a
+    # failed download must never block login.
     if profile.get("picture") and not (user.get("profile_pic") or ""):
         try:
             resp = requests.get(profile["picture"], timeout=5)
@@ -77,63 +77,71 @@ def auth_page():
 
     c1, c2, c3 = st.columns([1, 1.5, 1])
     with c2:
-        st.markdown(f"""
-        <div class="glass auth-card">
-          <div class="brand-mini">🪄 {APP_NAME}</div>
-          <div class="gradient-title" style="font-size:2rem;">Know what customers really feel</div>
-          <div class="subtitle">Pick a product, read what people said, and see which
-            parts of it people loved or hated.</div>
-          <div class="divider-line"></div>
-        """, unsafe_allow_html=True)
+        # The login card is ONE real container. It used to open
+        # `<div class="glass auth-card">` in a markdown call and close it ~55
+        # lines later. Streamlit renders each markdown call as its own block, so
+        # that left an empty rounded box at the top and spilled every widget
+        # outside the card.
+        card = st.container(key="auth-card", border=False)
+        with card:
+            st.markdown(f"""
+            <div class="auth-head">
+              <div class="brand-mini">🪄 {APP_NAME}</div>
+              <div class="gradient-title" style="font-size:2rem;">Know what customers really feel</div>
+              <div class="subtitle">Pick a product, read what people said, and see which
+                parts of it people loved or hated.</div>
+              <div class="divider-line"></div>
+            </div>
+            """, unsafe_allow_html=True)
 
-        err = st.session_state.pop("oauth_error", None)
-        if err:
-            st.error(f"🔐 {err}")
+            err = st.session_state.pop("oauth_error", None)
+            if err:
+                st.error(f"🔐 {err}")
 
-        # ---- way in #1: Google, first and biggest ----
-        _google_button()
+            # ---- way in #1: Google, first and biggest ----
+            _google_button()
 
-        st.markdown("<div class='or-sep'><span>or use your email</span></div>", unsafe_allow_html=True)
+            st.markdown("<div class='or-sep'><span>or use your email</span></div>", unsafe_allow_html=True)
 
-        # ---- way in #2: email, behind one toggle ----
-        mode = st.radio("Account", ["Log in", "Create account"], horizontal=True,
-                        label_visibility="collapsed")
+            # ---- way in #2: email, behind one toggle ----
+            mode = st.radio("Account", ["Log in", "Create account"], horizontal=True,
+                            label_visibility="collapsed")
 
-        if mode == "Log in":
-            login = st.text_input("Username or Gmail", placeholder="you@gmail.com")
-            pwd = st.text_input("Password", type="password", placeholder="••••••••")
-            if st.button("Log in", type="secondary", width="stretch"):
-                if not login or not pwd:
-                    st.error("Enter your username/Gmail and password.")
-                else:
-                    from auth import verify_password
-                    user = get_user_by_login(login)
-                    if user and verify_password(pwd, user["password_hash"], user["salt"]):
-                        do_login(user, via="email")
+            if mode == "Log in":
+                login = st.text_input("Username or Gmail", placeholder="you@gmail.com")
+                pwd = st.text_input("Password", type="password", placeholder="••••••••")
+                if st.button("Log in", type="secondary", width="stretch"):
+                    if not login or not pwd:
+                        st.error("Enter your username/Gmail and password.")
                     else:
-                        st.error("That login didn't match. Check the spelling, or create an account below.")
-        else:
-            username = st.text_input("Username", placeholder="sneha_21  (3–20 letters, numbers or _)")
-            gmail = st.text_input("Gmail", placeholder="you@gmail.com")
-            pwd = st.text_input("Password", type="password", placeholder="At least 6 characters, with a number")
-            pwd2 = st.text_input("Confirm password", type="password", placeholder="Repeat the password")
-            if st.button("Create account", type="secondary", width="stretch"):
-                if not valid_username(username or ""):
-                    st.error("Username must be 3–20 characters: letters, numbers or underscore.")
-                elif not valid_gmail(gmail or ""):
-                    st.error("Please use a valid **@gmail.com** address.")
-                elif (issues := password_issues(pwd or "")):
-                    st.error("Password needs " + ", ".join(issues) + ".")
-                elif pwd != pwd2:
-                    st.error("The two passwords don't match.")
-                elif get_user_by_login(username):
-                    st.error("That username is already taken.")
-                elif get_user_by_login(gmail):
-                    st.error("That Gmail is already registered — log in instead.")
-                else:
-                    user = create_user(username, gmail, pwd)
-                    log_event(user, "signup", f"New account created ({username})")
-                    st.success("Account created. Logging you in… 🎉")
-                    do_login(user, via="email")
+                        from auth import verify_password
+                        user = get_user_by_login(login)
+                        if user and verify_password(pwd, user["password_hash"], user["salt"]):
+                            do_login(user, via="email")
+                        else:
+                            st.error("That login didn't match. Check the spelling, or create an account below.")
+            else:
+                username = st.text_input("Username", placeholder="sneha_21  (3–20 letters, numbers or _)")
+                gmail = st.text_input("Gmail", placeholder="you@gmail.com")
+                pwd = st.text_input("Password", type="password", placeholder="At least 6 characters, with a number")
+                pwd2 = st.text_input("Confirm password", type="password", placeholder="Repeat the password")
+                if st.button("Create account", type="secondary", width="stretch"):
+                    if not valid_username(username or ""):
+                        st.error("Username must be 3–20 characters: letters, numbers or underscore.")
+                    elif not valid_gmail(gmail or ""):
+                        st.error("Please use a valid **@gmail.com** address.")
+                    elif (issues := password_issues(pwd or "")):
+                        st.error("Password needs " + ", ".join(issues) + ".")
+                    elif pwd != pwd2:
+                        st.error("The two passwords don't match.")
+                    elif get_user_by_login(username):
+                        st.error("That username is already taken.")
+                    elif get_user_by_login(gmail):
+                        st.error("That Gmail is already registered — log in instead.")
+                    else:
+                        user = create_user(username, gmail, pwd)
+                        log_event(user, "signup", f"New account created ({username})")
+                        st.success("Account created. Logging you in… 🎉")
+                        do_login(user, via="email")
 
-        st.markdown("</div>", unsafe_allow_html=True)
+

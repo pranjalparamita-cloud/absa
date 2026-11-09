@@ -26,11 +26,16 @@ def page_profile():
       </div>""", unsafe_allow_html=True)
 
     # ---- edit form ----
-    st.markdown('<div class="glass">', unsafe_allow_html=True)
-    st.markdown("##### ✏️ Edit profile")
-    new_username = st.text_input("Username", value=user["username"])
+    # NOTE: a card is a real container, not an HTML wrapper. Opening
+    # `<div class="glass">` in one st.markdown call and closing it in a later
+    # one does NOT wrap the widgets in between: Streamlit renders each call as
+    # its own block, so you get an empty rounded box followed by stray widgets.
+    with st.container(key="card-profile", border=False):
+        st.markdown("##### ✏️ Edit profile")
+        new_username = st.text_input("Username", value=user["username"])
+        save = st.button("💾 Save changes", width="stretch")
 
-    if st.button("💾 Save changes", width="stretch"):
+    if save:
         if not valid_username(new_username):
             st.error("Username must be 3–20 chars: letters, numbers, underscore.")
         else:
@@ -43,18 +48,19 @@ def page_profile():
                 log_event(st.session_state.user, "update_profile", f"Updated profile (username={new_username})")
                 st.success("Profile saved!")
                 st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
 
-    st.markdown('<div class="glass" style="margin-top:14px;">', unsafe_allow_html=True)
-    st.markdown("##### 🔑 Change password")
-    if user["provider"] == "google":
-        st.info("You signed in with Google — set an email password below to also enable email login.")
-        old = None
-    else:
-        old = st.text_input("Current password", type="password")
-    new1 = st.text_input("New password", type="password")
-    new2 = st.text_input("Confirm new password", type="password")
-    if st.button("🔐 Update password", width="stretch"):
+    with st.container(key="card-password", border=False):
+        st.markdown("##### 🔑 Change password")
+        if user["provider"] == "google":
+            st.info("You signed in with Google — set an email password below to also enable email login.")
+            old = None
+        else:
+            old = st.text_input("Current password", type="password")
+        new1 = st.text_input("New password", type="password")
+        new2 = st.text_input("Confirm new password", type="password")
+        update = st.button("🔐 Update password", width="stretch")
+
+    if update:
         if old is not None and not verify_password(old or "", user["password_hash"], user["salt"]):
             st.error("Current password is incorrect.")
         elif (issues := password_issues(new1 or "")):
@@ -67,4 +73,3 @@ def page_profile():
             st.session_state.user = get_user_by_id(user["id"])
             log_event(st.session_state.user, "change_password", "Changed password")
             st.success("Password updated!")
-    st.markdown("</div>", unsafe_allow_html=True)
