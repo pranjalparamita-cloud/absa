@@ -1,87 +1,139 @@
-# 🔐 Enable the REAL "Continue with Google" (free, ~10 min)
+# 🔐 Enable "Continue with Google" — st.login() edition
 
-Out of the box the app runs Google login in **demo mode**. Follow these steps
-once to switch it to **real mode**: clicking *Continue with Google* will open
-Google's own account chooser showing the user's already-logged-in Gmail
-accounts, and one click logs them straight into your app.
+This build uses **Streamlit's built-in login** (`st.login()`). Streamlit's own
+server sends the browser to Google, so the Google screen is always a top-level
+page. The old build tried to redirect from HTML, and when that ran inside a
+framed context Google answered with:
 
-Everything below is FREE (Google Cloud's free tier covers OAuth logins).
+```
+403. That's an error.
+We're sorry, but you do not have access to this page.
+```
+
+That page can no longer appear in this build.
+
+**Setup time: about 8 minutes. Cost: free.**
 
 ---
 
-## STEP 1 — Create a Google Cloud project
+## The one thing that changed
 
-1. Go to **https://console.cloud.google.com** and sign in with your Gmail.
-2. Top-left project dropdown → **New Project** → name it e.g. `aspectlens` → **Create**.
-3. Make sure the new project is selected (top-left dropdown).
+Streamlit's login always returns to this path:
 
-## STEP 2 — Configure the OAuth consent screen
-
-1. Left menu → **APIs & Services** → **OAuth consent screen**.
-2. User type → **External** → **Create**.
-3. Fill the required fields:
-   - **App name:** `AspectLens` (or anything)
-   - **User support email:** your Gmail
-   - **Developer contact:** your Gmail
-4. Click **Save and Continue** through Scopes/Test users — but on the
-   **Test users** step click **+ Add Users** and add your Gmail
-   (and any friend's Gmail who should be able to log in).
-   > ⚠️ While the app is in **Testing** mode, ONLY these test users can log in.
-   > That's perfect for a college project. (Publishing is optional.)
-5. **Back to Dashboard**. Done.
-
-## STEP 3 — Create the OAuth Client ID + Secret
-
-1. Left menu → **APIs & Services** → **Credentials** → **+ Create Credentials** → **OAuth client ID**.
-2. Application type → **Web application**, name it e.g. `aspectlens-web`.
-3. Under **Authorized redirect URIs**, click **+ Add URI** and add BOTH:
-   - `https://YOUR-APP-NAME.streamlit.app/` ← your deployed app URL (with trailing `/`)
-   - `http://localhost:8501/` ← for testing on your own computer
-   > ⚠️ Must match **exactly** (https, spelling, trailing `/`), or Google shows `redirect_uri_mismatch`.
-4. Click **Create** → a popup shows your **Client ID** and **Client Secret**. Copy both.
-
-## STEP 4 — Add secrets to Streamlit Cloud
-
-1. Open your deployed app → bottom-right **Manage app** (or `⋮` menu) → **Settings** → **Secrets**.
-2. Paste this (with YOUR values), then **Save** (the app auto-reboots):
-
-```toml
-GOOGLE_CLIENT_ID = "xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com"
-GOOGLE_CLIENT_SECRET = "GOCSPX-xxxxxxxxxxxxxxxxxxxxxxxx"
-GOOGLE_REDIRECT_URI = "https://YOUR-APP-NAME.streamlit.app/"
+```
+https://YOUR-APP.streamlit.app/oauth2callback
 ```
 
-## STEP 5 (local testing) — `.streamlit/secrets.toml`
-
-To test real Google login on your own computer, create the file
-`.streamlit/secrets.toml` (copy from `secrets.toml.example`) with:
-
-```toml
-GOOGLE_CLIENT_ID = "xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com"
-GOOGLE_CLIENT_SECRET = "GOCSPX-xxxxxxxxxxxxxxxxxxxxxxxx"
-GOOGLE_REDIRECT_URI = "http://localhost:8501/"
-```
-
-Then run `streamlit run app.py` and try it.
-
-> 🔒 **NEVER commit `secrets.toml` to GitHub** — it contains your secret.
-> It is already listed in `.gitignore`. On Streamlit Cloud, secrets are
-> stored securely in the dashboard, not in the repo.
+That exact URL — with `/oauth2callback` on the end — must be registered in
+Google Cloud. It is **not** the bare app URL any more. If you skip this you get
+`redirect_uri_mismatch` rather than a 403, which at least names the problem.
 
 ---
 
-## ✅ Test it
+## STEP 1 — Google Cloud project
 
-1. Open your app → **Continue with Google**.
-2. Google's chooser appears with your logged-in Gmail accounts → pick one.
-3. You're logged in! First login auto-creates the account (with your Google
-   profile photo); next time it's a one-click login.
+1. Open **https://console.cloud.google.com** and sign in.
+2. Top-left project dropdown → **New Project** → name it → **Create**.
+3. Make sure that project is selected afterwards.
 
-## 🔧 Troubleshooting
+## STEP 2 — OAuth consent screen
 
-| Problem | Fix |
+**APIs & Services → OAuth consent screen** (newer console: **Google Auth Platform**)
+
+1. User type **External** → **Create**.
+2. App name `AspectLens`, user support email and developer contact = your Gmail.
+3. **Save and Continue** through Scopes.
+4. On **Test users** → **+ ADD USERS** → add **the exact Gmail you will sign in with** → **Save**.
+
+> While the app is in **Testing**, only those emails may sign in. Anyone else
+> gets an error even though the code is perfect.
+>
+> Better: on the **Audience** page click **Publish app**. This app requests only
+> `openid`, `email` and `profile` — Google classes those as *non-sensitive*, so
+> publishing is instant and needs no review.
+
+## STEP 3 — Create the OAuth client
+
+**APIs & Services → Credentials → + CREATE CREDENTIALS → OAuth client ID**
+
+- Application type: **Web application**
+- Name: `aspectlens-web`
+- **Authorized redirect URIs** → **+ ADD URI** → paste **exactly**:
+
+```
+https://YOUR-APP.streamlit.app/oauth2callback
+```
+
+For testing on your own computer add a second URI:
+
+```
+http://localhost:8501/oauth2callback
+```
+
+- **Create** → copy the **Client ID** and **Client Secret**.
+
+⚠️ Character for character: `https`, the exact subdomain, and `/oauth2callback`
+at the end. No trailing slash after `oauth2callback`.
+
+## STEP 4 — Paste the secrets into Streamlit
+
+Your app → **Manage app** → **Settings** → **Secrets** → replace everything with:
+
+```toml
+[auth]
+client_id = "123456789012-xxxxxxxx.apps.googleusercontent.com"
+client_secret = "GOCSPX-xxxxxxxxxxxxxxxx"
+server_metadata_url = "https://accounts.google.com/.well-known/openid-configuration"
+redirect_uri = "https://YOUR-APP.streamlit.app/oauth2callback"
+```
+
+**Save.** The app reboots.
+
+Before clicking anything else, open the login page and press
+**🔍 Check my Google settings**. It reads back which values the app actually
+received, so you can see a typo immediately instead of guessing.
+
+## STEP 5 — Test
+
+Click **Continue with Google** → Google's account chooser appears → pick your
+Gmail → you land back in the app, logged in, account created automatically.
+
+`st.login()` needs the **`authlib`** package; it is already listed in
+`requirements.txt` of this build.
+
+---
+
+## Why this is more reliable than before
+
+| Old build | This build |
 |---|---|
-| `redirect_uri_mismatch` / Error 400 | The URI in Google Console must EXACTLY equal `GOOGLE_REDIRECT_URI` (check trailing `/`, https) |
-| `Access blocked: app has not completed verification` | Normal in Testing mode — the Gmail must be added under **Test users** (Step 2.4) |
-| Still seeing demo mode | Secrets missing/typo'd → check Cloud **Settings → Secrets**, then **Reboot app** |
-| `Security check failed` | Session expired — just click Continue with Google again |
+| App built the URL and used `<meta refresh>` | Streamlit server issues a real 302 |
+| Google screen could be rendered inside a frame → **403** | Always top-level → cannot be framed |
+| Redirect to the bare app URL | Redirect to `/oauth2callback` |
+| Secrets named `GOOGLE_CLIENT_ID` etc. | Standard `[auth]` block |
+| Failure looked like a bare Google 403 | Failures name themselves: `redirect_uri_mismatch`, `invalid_client` |
+
+---
+
+## Troubleshooting
+
+| What you see | Cause | Fix |
+|---|---|---|
+| `redirect_uri_mismatch` | URI in Google Cloud ≠ `redirect_uri` in secrets | They must match character for character, including `/oauth2callback` |
+| `Access blocked: app has not completed verification` | Your Gmail is not a Test user | Add it under Audience → Test users, or Publish app |
+| `invalid_client` / "OAuth client was not found" | Client ID copied wrong, or the client was deleted | Re-copy from Credentials |
+| Still the plain email/password card with a grey Google button | No `[auth]` section in secrets | Paste STEP 4 and save |
+| `st.login() requires authlib` | Missing dependency | Add `authlib>=1.3.2` to `requirements.txt` |
+| Login works, then bounces straight back in after logout | Google session still active | Expected — the app calls `st.logout()`; to switch accounts use an incognito window |
+
+---
+
+## No Google account? Email login works with zero setup
+
+```
+demo@gmail.com  / Demo@123      normal user
+admin@gmail.com / Admin@123     admin — extra Admin Panel in the sidebar
+```
+
+Or click **Create account** on the login card: any username, a `@gmail.com`
+address, and a password with 6+ characters including a number.

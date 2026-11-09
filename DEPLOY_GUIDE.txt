@@ -1,199 +1,164 @@
 ================================================================================
- AspectLens — DEPLOYMENT GUIDE (read this first)
+ AspectLens — DEPLOY GUIDE  (build v6 · 09 Nov 2026)
 ================================================================================
-Two ready-to-run packages are in this Drive folder:
+ Two packages in this folder:
 
-  aspectlens-quickstart.zip   ->  ONE file of Python. Almost impossible to break.
-  aspectlens-full.zip         ->  Normal multi-file project (app.py + modules + views/).
+   aspectlens-quickstart.zip   ->  ONE Python file. Nothing to break.
+   aspectlens-full.zip         ->  Normal project (app.py + modules + views/).
 
-Both are complete and tested. Pick ONE. The quickstart is what I recommend for
-your Streamlit Cloud deploy; the full version is the "proper" project layout if
-you want to keep editing individual modules.
-
-Every claim in this file was checked by actually running the code, not by
-reading it: login, search, live suggestions, product selection, automatic NLP
-analysis, all charts, profile, history, admin panel, logout, Google OAuth
-redirect, database seeding, and a read-only filesystem.
+ READ THIS FIRST: Google login in this build uses Streamlit's built-in
+ st.login(). It is a different setup from earlier builds. The redirect URI now
+ ends in /oauth2callback, and the secrets are an [auth] block. Details below.
 ================================================================================
 
 
-WHICH ONE SHOULD I USE?
+WHAT'S NEW IN v6
 ================================================================================
-Use the QUICKSTART if:
-  - your last deploy died with "ModuleNotFoundError: No module named 'views'"
-  - you just want it to work
-  - you do not plan to restructure the code
+1. Google login rebuilt on st.login() (Streamlit's own OIDC client).
+   - Before: the app built the URL and relied on an HTML <meta refresh>.
+   - Now: the Streamlit server issues a real 302 to Google.
+   - Why it matters: Google refuses to render its login screen inside a frame
+     and answers with "403 - That's an error / you do not have access to this
+     page". That was exactly the page reported. With a server redirect the
+     screen is always top-level, so that 403 cannot happen. Verified by
+     launching the app and clicking the button in a real browser.
+   - Requires the `authlib` package (already in requirements.txt).
 
-Use the FULL if:
-  - you want one file per screen (views/login.py, views/analysis.py, ...)
-  - you are comfortable confirming the `views` folder really exists in GitHub
+2. The redirect URI changed. It is now:
+       https://YOUR-APP.streamlit.app/oauth2callback
+   NOT the bare app URL any more. This exact string must be registered in
+   Google Cloud or you get redirect_uri_mismatch.
 
-You can also upload BOTH: the quickstart's app.py would then be ignored, as long
-as you set the main file path to the one you want.
+3. "Check my Google settings" button on the login screen. It reads back the
+   values the app actually received and tests them against Google, so a typo
+   is visible instead of producing a blank Google error page.
+
+4. Build stamp. The login card, the sidebar and the My Account header all show
+   "build v6 - 09 Nov 2026". If you deploy and still see v5, the files did not
+   reach GitHub.
+
+5. Earlier fixes still included:
+   - Blank sunburst chart (branchvalues + fake root node) — fixed.
+   - Empty white bars above Edit profile / Change password / admin charts —
+     caused by <div> wrappers opened and closed in separate st.markdown calls.
+     Replaced with real st.container(key=...) cards.
+   - Database path fallback if the filesystem is read-only.
+   - requirements.txt range-pinned so any Cloud Python version installs.
 
 
+WHICH PACKAGE?
 ================================================================================
-OPTION 1 — QUICKSTART (recommended)
+QUICKSTART  — one file, no folders, recommended.
+   Files: app.py, requirements.txt, README.md, GOOGLE_SETUP.md,
+          .streamlit/config.toml, .streamlit/secrets.toml.example, .gitignore
+
+FULL        — app.py + 9 modules + views/ (6 files) + docs.
+   Use this only if you want to edit individual screens.
+   If the views/ folder is missing from GitHub you get
+   "ModuleNotFoundError: No module named 'views'" — the quickstart cannot have
+   that problem because there is no folder to lose.
+
+
+DEPLOY — 4 STEPS
 ================================================================================
-Files inside aspectlens-quickstart.zip:
+1. Unzip. Upload its CONTENTS to the ROOT of your GitHub repo
+   (app.py at the top level, not inside a subfolder).
 
-    app.py                          <- the whole application
-    requirements.txt
-    README.md
-    GOOGLE_SETUP.md                 <- only if you want real Google login
-    .streamlit/config.toml
-    .streamlit/secrets.toml.example
-    .gitignore
+2. Streamlit Cloud -> your app -> Settings -> Main file path:   app.py
 
-a) Unzip it on your computer.
-b) Create a new GitHub repository (or open your existing one).
-c) Upload EVERY item from inside the unzipped folder — app.py,
-   requirements.txt, README.md, GOOGLE_SETUP.md, .gitignore — to the ROOT of the
-   repo. Do not create any subfolder for app.py.
-d) go to share.streamlit.io -> your app -> the "..." menu -> Settings ->
-   "Main file path":  app.py
-   (if you renamed the file, use that name instead)
-e) Reboot the app.
+3. Streamlit Cloud -> Settings -> Secrets -> paste the [auth] block:
+   (see the file "PASTE_INTO_STREAMLIT_SECRETS.txt" in this folder —
+    it is pre-filled with your app URL)
 
-There is no views folder, no package, no relative import. The only things that
-can go wrong at that point are (1) missing requirements.txt or (2) Streamlit
-pointed at a file that does not exist — both are plain-text errors that name the
-problem.
+4. Reboot app.
 
 
+GOOGLE CLOUD — THE PART THAT MUST MATCH
 ================================================================================
-OPTION 2 — FULL PROJECT
+In Google Cloud -> APIs & Services -> Credentials -> your OAuth client ID
+(Web application) -> Authorized redirect URIs, you need:
+
+    https://nhuepfaebgtaqhk7w86htv.streamlit.app/oauth2callback
+
+Rules:
+  - https, exact subdomain, and /oauth2callback on the end
+  - no trailing slash after oauth2callback
+  - for local testing add:  http://localhost:8501/oauth2callback
+
+AND the account restriction, which is Google's, not the code's:
+  Google Auth Platform -> Audience ->
+     Testing mode: add the exact Gmail under Test users (max 100, allow 10 min
+     for Google to propagate), OR
+     click "Publish app". This app asks only for openid / email / profile,
+     which are non-sensitive scopes, so publishing needs no Google review.
+
+If you skip that, Google blocks every account that is not a test user. No code
+change can bypass it.
+
+
+LOGIN WITHOUT GOOGLE
 ================================================================================
-Files inside aspectlens-full.zip:
+    demo@gmail.com   / Demo@123     normal user
+    admin@gmail.com  / Admin@123    admin (extra Admin Panel in the sidebar)
 
-    app.py  config.py  database.py  auth.py  google_auth.py  catalog.py
-    nlp_engine.py  charts.py  ui_helpers.py  styles.py
-    views/__init__.py  views/login.py  views/analysis.py  views/profile.py
-    views/history.py  views/admin.py
-    requirements.txt  README.md  GOOGLE_SETUP.md  .gitignore
-    .streamlit/config.toml  .streamlit/secrets.toml.example
-
-a) Unzip it.
-b) Upload the folder CONTENTS to the repo root, so the repo looks like:
-
-       app.py
-       requirements.txt
-       views/
-           __init__.py
-           login.py
-           analysis.py
-           profile.py
-           history.py
-           admin.py
-
-   GitHub's web uploader silently drops folders in some browsers — this is
-   exactly what caused your "No module named 'views'" error. Two reliable routes:
-     - "Add file" -> "Upload files" and drag the whole unzipped FOLDER (not the
-       individual files), then confirm "views" appears in the file list;
-     - or "Add file" -> "Create new file" and type the full path
-       views/login.py  (typing the slash creates the folder), then paste.
-c) Settings -> Main file path: app.py
-d) Reboot.
-
-SAFETY NET built in: this app.py unpacks any .zip sitting next to it if project
-files are missing, so you can also drop this entire zip in the repo root as an
-extra file. Nothing gets overwritten — files already in the repo always win.
+Or click "Create account": any username, a @gmail.com address, and a password
+with 6+ characters including a number. This needs no Google setup at all.
 
 
+WHAT WAS TESTED, AND HOW
 ================================================================================
-WHAT I CHANGED FOR DEPLOYMENT (and why)
+Every release was checked by driving the real Streamlit app (AppTest) and, for
+the visual fixes, by rendering it in a headless Chromium and screenshotting it.
+
+  boot ............................ 0 exceptions
+  email login (demo + admin) ...... PASS
+  search "head" -> suggestions .... 3 shown (LED Headlight / Gaming Headset /
+                                    Noise Cancelling Headphones)
+  pick product -> analysis ........ 6 charts + aspect table + 22 review blocks
+  My Account + History ............ PASS
+  Admin panel ..................... PASS
+  logout .......................... PASS
+  Google OAuth callback ........... PASS
+  chart guard (sunburst/radar) .... 13/13 PASS
+  empty-white-bar scan (DOM) ...... 0 found
+  read-only filesystem boot ....... PASS (DB falls back to temp)
+  st.login redirect ............... confirmed top-level, Google evaluated the
+                                    client and returned invalid_client for a
+                                    deliberately fake ID (i.e. no 403 page)
+  final: 23/23 checks on both packages, re-tested from the Drive download.
+
+
+TROUBLESHOOTING
 ================================================================================
-1. Database path can no longer crash the app.
-   config.py picks absa.db next to the code; if that folder is not writable it
-   falls back to the system temp folder. Verified on a read-only directory: the
-   app booted and served the login screen.
+"ModuleNotFoundError: No module named 'views'"
+    -> FULL package only; the views/ folder is not in the repo. Use QUICKSTART,
+       or create views/login.py etc. via GitHub "Add file -> Create new file"
+       (typing the slash creates the folder).
 
-2. First-run seeding cannot break a deploy.
-   init_db() now wraps catalog seeding in a guard, so even a half-finished seed
-   leaves a working app instead of a traceback.
+"No module named 'streamlit'"
+    -> requirements.txt missing or not in the repo root.
 
-3. SQLite locking.
-   Connections use timeout=30 plus PRAGMA busy_timeout, so two visitors loading
-   the app at the same second do not produce "database is locked".
+"Your app is in the oven" forever
+    -> open the build log; it is almost always a dependency install line.
 
-4. Correct landing page after login.
-   do_login() used to set the page to "Product Explorer", which is not one of
-   the sidebar options. It now sets "Products" — the first screen always exists.
+redirect_uri_mismatch
+    -> The URI in Google Cloud must equal GOOGLE_REDIRECT_URI / redirect_uri
+       EXACTLY, including /oauth2callback.
 
-5. Loading the screens cannot fail just because views/__init__.py is missing.
-   app.py imports the package normally, and if that fails it loads
-   views/login.py etc. straight from disk.
+"Access blocked: app has not completed verification"
+    -> Your Gmail is not a Test user. Audience -> Test users -> add it, or
+       Publish app.
 
-6. Failures are readable.
-   If something unexpected still happens, you get a card with a Reload button
-   and the exact file/line, instead of Streamlit's redacted "Error running app".
+Google button greyed out / "Google login is off"
+    -> No [auth] block in Secrets, or a typo in a key name. Paste the block from
+       PASTE_INTO_STREAMLIT_SECRETS.txt and save.
 
-7. requirements.txt is range-pinned, not exact-pinned.
-   Streamlit Cloud chooses the Python version itself (Advanced settings) and
-   ignores runtime.txt / .python-version. Exact pins can have no wheel for that
-   interpreter, which fails the install. Ranges let pip pick a matching wheel.
+Data resets after the app sleeps
+    -> Streamlit Cloud storage is ephemeral; absa.db is rebuilt and the demo
+       accounts re-seeded automatically. For permanent users you would move to
+       an external database (Supabase/Postgres) — not needed for this project.
 
-8. Google login is verified end to end.
-   With placeholder secrets the button is disabled and explains why. With real
-   values it builds a correct redirect: client_id, CSRF state, scope
-   openid email profile, prompt=select_account, and the callback exchanges the
-   code for the profile. Avatar download is fully guarded and can never block
-   login.
-
-
-================================================================================
-REAL GOOGLE LOGIN (optional, ~10 minutes, free)
-================================================================================
-1. console.cloud.google.com -> create a project.
-2. APIs & Services -> OAuth consent screen -> External -> fill app name + email.
-3. Credentials -> Create credentials -> OAuth client ID -> Web application.
-4. Authorised redirect URI (exact, including the trailing slash):
-       https://YOUR-APP-NAME.streamlit.app/
-5. Copy the Client ID and Client Secret.
-6. In Streamlit Cloud: Manage app -> Settings -> Secrets, paste:
-
-       GOOGLE_CLIENT_ID = "....apps.googleusercontent.com"
-       GOOGLE_CLIENT_SECRET = "GOCSPX-...."
-       GOOGLE_REDIRECT_URI = "https://YOUR-APP-NAME.streamlit.app/"
-
-7. Save, reboot, and click "Continue with Google".
-
-The redirect URI must match character for character, or Google returns
-redirect_uri_mismatch. GOOGLE_SETUP.md inside each zip has screenshots-level
-detail.
-
-Email/password login works with no setup at all:
-    demo@gmail.com  / Demo@123      (normal user)
-    admin@gmail.com / Admin@123     (admin — extra Admin Panel in the sidebar)
-
-
-================================================================================
-IF SOMETHING STILL GOES WRONG
-================================================================================
-"ModuleNotFoundError: No module named 'x'"  (x = a project module)
-   -> You are on OPTION 2 and the file is not in the repo root. Use OPTION 1,
-      or add the zip as well (the safety net unpacks it).
-
-"ModuleNotFoundError: No module named 'streamlit'"
-   -> requirements.txt is missing, or not in the repo root.
-
-App stuck on "Your app is in the oven"
-   -> Open the build log. It is almost always a dependency install line.
-
-"Error running app" with a redacted traceback
-   -> Reboot once. If it persists, this build shows the real error and file/line
-      on screen instead of that message.
-
-Login looks stuck after the Google screen
-   -> redirect_uri_mismatch means the URI in Google Cloud does not match
-      GOOGLE_REDIRECT_URI exactly (https, the full domain, trailing slash).
-
-Data resets after a while
-   -> Streamlit Cloud file systems are ephemeral; absa.db is rebuilt
-      automatically on the next start. Demo accounts are re-seeded, so logins
-      keep working.
-
-Streamlit's file system is shared per app but not permanent. For a real
-production app you would move users and history to an external database
-(Supabase/Firebase/Postgres). Not needed for this project.
+Still on "build v5" after deploying
+    -> The new files did not reach GitHub. Streamlit only reads the repo, not
+       Drive. Check the commit, then Manage app -> Reboot.
 ================================================================================

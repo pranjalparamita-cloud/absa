@@ -9,6 +9,7 @@
 # Tested here on Python 3.13 with: streamlit 1.67, pandas 2.2.3, plotly 6.0.1,
 # Pillow 13.0.0, requests 2.33.0.
 streamlit>=1.49,<2
+authlib>=1.3.2
 pandas>=2.2,<3
 plotly>=5.24,<7
 Pillow>=10.4,<14

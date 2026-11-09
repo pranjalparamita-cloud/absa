@@ -8,12 +8,13 @@ import streamlit as st
 
 from auth import valid_username, password_issues, verify_password, hash_password
 from database import get_user_by_id, get_user_by_login, update_user, log_event, fetch_df
+from config import BUILD
 from ui_helpers import header
 
 
 def page_profile():
     user = st.session_state.user
-    header("My Account", "Change your name or your password.")
+    header("My Account", f"Change your name or your password.   ·   build {BUILD}")
 
     hist = fetch_df("SELECT COUNT(*) c FROM analysis_history WHERE user_id=?", (user["id"],))
     logins = fetch_df("SELECT COUNT(*) c FROM activity_logs WHERE user_id=? AND event_type IN ('login','google_login')",

@@ -8,6 +8,14 @@ import os
 
 APP_NAME = "AspectLens"
 
+# st.login() (Streamlit's built-in OIDC) always redirects back to this path.
+# It MUST be registered in Google Cloud as an Authorized redirect URI.
+OAUTH_CALLBACK_PATH = "/oauth2callback"
+
+# Shown in the sidebar so anyone can verify which code is deployed.
+# Bump this whenever you upload a new build.
+BUILD = "v6 · 09 Nov 2026"
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 

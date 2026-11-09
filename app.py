@@ -114,11 +114,11 @@ from datetime import datetime            # noqa: E402
 
 _CONFIG_ERROR = None
 try:
-    from config import APP_NAME, DB_PATH
+    from config import APP_NAME, BUILD, DB_PATH
     from styles import apply_custom_css
     from database import init_db, log_event
     from ui_helpers import avatar_html
-    from google_auth import handle_oauth_callback
+    from google_auth import handle_oauth_callback, current_native_user
 except Exception as _exc:                # pragma: no cover
     _CONFIG_ERROR = _exc
     APP_NAME, DB_PATH = "AspectLens", "absa.db"
@@ -284,8 +284,16 @@ def sidebar():
             for k in ["user", "page", "catalog_product_id", "catalog_analysis", "catalog_query",
                       "catalog_category", "show_google", "login_time", "session_id"]:
                 st.session_state.pop(k, None)
+            # End the Streamlit native OIDC session too (no-op when st.login is
+            # not configured). Without it Google silently logs the user back in.
+            try:
+                if current_native_user():
+                    st.logout()
+            except Exception:
+                pass
             st.rerun()
         st.markdown("---")
+        st.caption(f"build {BUILD}")
         with st.expander("ℹ️ How it works"):
             st.caption("1️⃣ Type a product in the search box.\n\n"
                        "2️⃣ Pick it from the suggestions that appear.\n\n"
@@ -300,6 +308,16 @@ def _boot():
     # Google redirects back to the app with ?code=... — this must run BEFORE the
     # login gate, otherwise the user is shown the login screen again and the
     # handshake silently dies.
+    # ---- Streamlit native OIDC (st.login) -------------------------------
+    # With st.login() configured, Streamlit performs the whole handshake and
+    # exposes the verified identity on st.user. Adopt it BEFORE the login gate
+    # so a returning user is never shown the login screen again.
+    if "user" not in st.session_state or st.session_state.user is None:
+        native_profile = current_native_user()
+        if native_profile and native_profile.get("email"):
+            login.login_with_google_profile(native_profile)
+
+    # Legacy hand-built OAuth callback (?code=...) — also before the gate.
     if "user" not in st.session_state or st.session_state.user is None:
         google_profile, oauth_error = handle_oauth_callback()
         if oauth_error:
