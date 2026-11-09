@@ -16,32 +16,29 @@ large ML downloads.
 
 | Module | What it does |
 |---|---|
-| **🛍️ Products** | One search box, one grid. Search a 5,000-item catalog by product, brand or category — no filters to configure |
-| **💬 Name + review type** | The product page shows the product name and what its 10 reviews are made of — how many positive / neutral / negative, and the average stars. No image gallery, no clutter |
+| **🛍️ Product Explorer** | Search a 5,000-item catalog by product, brand, category or SKU, with autocomplete-style suggestions |
+| **🔎 Category filters** | Browse Electronics, Mobile Accessories, Computers & Gaming, Appliances, Automotive Parts/Accessories, Home, Fashion, Sports and Books & Office |
+| **💬 Full review feed** | Every product includes 10 varied positive, neutral and negative review samples, displayed beneath the analysis workspace |
 | **📊 Review intelligence** | Aspect-sentiment dashboard: Sunburst, Bar, Radar, Donut, timeline, rating chart, KPI cards and aspect table |
-| **🔐 Accounts** | Continue with Google (real OAuth), or email + password. Gmail-only. Change your display name and password in **My Account** |
-| **👤 My Account** | Name, password, and your past analyses with CSV download |
+| **🔐 Accounts** | Gmail-only sign-up/login, hashed passwords, profile controls and session tracking |
+| **🕘 My History** | Saved analyses with verdicts and CSV download |
 | **🛡️ Admin Panel** | User activity tracking, session information and exports |
 
 ### NLP engine — offline and free
 
 - Eight aspects: **Quality, Price, Delivery, Packaging, Service, Features, Durability, Design**
-- Negation-aware scoring (`"not good"` flips), intensifiers (`"very good"` boosts), hedges (`"a little high"` dampens) and contrast clauses (`"fine, although the price is high"` scores the price clause)
-- Ambiguous words are context-checked: `high` only counts as negative when the sentence is about price, `low` counts as *positive* about price and negative about quality, `small` only matters for fit/size
-- Sentences with no opinion word at all are skipped, so descriptive text can never vote
-- 100% agreement between the seeded review label and the NLP label across the whole catalog
+- Keyword aspect tagging plus negation/intensifier-aware sentiment scoring
+- Every analysis runs on the product's complete 10-review demo feed
 
 ---
 
 ## 🚀 How to use it
 
-1. Log in — **Continue with Google**, or email and password.
-2. Type a product in the search box (`headphones`, `samsung`, `air fryer`).
-3. Suggestions appear as you type — **click the one you mean**.
-4. The analysis runs immediately: verdict, the 8 aspects, the charts.
-5. Its reviews are listed **underneath** the analysis.
-
-There is no "Analyse" button and no filters to set. One search, one click.
+1. Open **🛍️ Product Explorer**.
+2. Type a product, brand, category or catalog SKU (for example `samsung`, `brake pad`, `air fryer`, or `AL-05-001`).
+3. Select one of the autocomplete suggestions.
+4. Read the product's complete mixed review feed.
+5. Click **Analyse all product reviews** for the dashboard.
 
 ## 💻 Run locally
 
@@ -50,17 +47,11 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Google login is optional. With no secrets configured the app says so on the login
-screen and email login works normally. To enable it, copy
-`.streamlit/secrets.toml.example` to `.streamlit/secrets.toml` and fill in the three
-values — see `GOOGLE_SETUP.md`.
-
 On first launch, SQLite automatically creates and seeds the built-in catalog:
 
 - **5,000** product-style listings
 - **50,000** mixed review samples
 - **10** shopping categories
-- realistic per-product-type pricing (₹99 pens to ₹3.7 L gaming laptops)
 
 ## 🚀 Deploy on Streamlit Community Cloud
 
@@ -73,7 +64,7 @@ On first launch, SQLite automatically creates and seeds the built-in catalog:
 > database when an app is restarted, so the catalog is designed to seed itself
 > safely whenever needed.
 
-### Demo accounts
+## 🔑 Demo accounts
 
 | Role | Email | Password |
 |---|---|---|
@@ -85,17 +76,17 @@ On first launch, SQLite automatically creates and seeds the built-in catalog:
 ```text
 aspect-sentiment-app/
 ├── app.py                  # app setup, sidebar and routing
-├── catalog.py              # 5,000-product / 50,000-review generated demo catalog + pricing
+├── catalog.py              # 5,000-product / 50,000-review generated demo catalog
+├── product_visuals.py      # generated product thumbnail + 3-view gallery visuals
 ├── database.py             # SQLite schema, user data and catalog seeding
-├── nlp_engine.py           # aspect-based sentiment engine + 12-month price history
-├── charts.py               # Plotly dashboard figures (incl. price history)
-├── ui_helpers.py           # cards, avatar, review, badge and price helpers
+├── nlp_engine.py           # aspect-based sentiment engine
+├── charts.py               # Plotly dashboard figures
+├── ui_helpers.py           # cards, avatar, review and badge helpers
 ├── styles.py               # glassmorphism UI and sidebar fix
-├── legacy/                 # superseded upload-first code (not imported; safe to delete)
 ├── views/
-│   ├── analysis.py         # one-box product search + review-analysis workspace
+│   ├── analysis.py         # Product Explorer and full review-analysis workspace
 │   ├── login.py            # login / sign-up / Google entry point
-│   ├── profile.py          # My Account: name + password
+│   ├── profile.py          # profile controls
 │   ├── history.py          # saved analyses
 │   └── admin.py            # activity tracking
 ├── requirements.txt
@@ -105,7 +96,6 @@ aspect-sentiment-app/
 ## 🛡️ Notes
 
 - Passwords are salted and hashed using PBKDF2-HMAC-SHA256.
-- Prices are generated demo values matched to each product type, not live listings.
 - The catalog's generated content is for product-analytics demonstration only.
 - For production, replace `catalog.py` seed data with appropriately licensed
   product and customer-review data, and retain source/consent attribution.
