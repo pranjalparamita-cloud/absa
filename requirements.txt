@@ -1,0 +1,15 @@
+# AspectLens — runtime dependencies
+# ---------------------------------------------------------------------------
+# Deliberately RANGE-pinned, not exact-pinned.
+# Streamlit Community Cloud picks the Python version itself (Advanced settings),
+# and an exact pin can have no pre-built wheel for that interpreter — pip then
+# tries to compile from source and the deploy fails. Ranges let pip choose the
+# wheel that matches whatever Python the app runs on.
+#
+# Tested here on Python 3.13 with: streamlit 1.67, pandas 2.2.3, plotly 6.0.1,
+# Pillow 13.0.0, requests 2.33.0.
+streamlit>=1.49,<2
+pandas>=2.2,<3
+plotly>=5.24,<7
+Pillow>=10.4,<14
+requests>=2.31,<3

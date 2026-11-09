@@ -1,0 +1,6 @@
+absa.db
+__pycache__/
+*.pyc
+.venv/
+.streamlit/secrets.toml
+legacy/
